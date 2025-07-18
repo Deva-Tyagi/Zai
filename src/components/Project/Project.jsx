@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { X, MapPin, Home, CheckCircle } from 'lucide-react';
 import serene from '../../assets/godrej-serene.jpg';
-import evergreen from '../../assets/godrej-evergreen-square.jpg';
-import aqua from '../../assets/godrej-codename-aquaman.jpg';
-import greenfront from '../../assets/godrej-the-greenfront-projects.jpg';
+import park from '../../assets/Godrej-Park-Springs.png'
+import urban from '../../assets/Godrej-Urban-Retreat.png'
+import river from '../../assets/godrej-river-crest.webp'
+import emailjs from '@emailjs/browser';
+
 
 const ProjectsSection = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,66 +21,52 @@ const ProjectsSection = () => {
   const projects = [
     {
       id: 1,
-      title: "Godrej Serene",
-      location: "Pune Mumbai Expressway, Pune",
-      type: "2 & 3 BHK Apartments",
-      price: "₹ 80.99 Lacs (*All Inclusive)",
-      image: serene,
+      title: "Godrej Park Springs",
+      location: "At Kharadi-Manjari Road, Pune",
+      type: "2 & 3 BHK Smart & Comfort Homes",
+      price: "₹ 74.99 Lacs* Onwards",
+      image: park,
       features: [
-        "Holiday Themed Homes",
-        "35+ World Class Amenities",
-        "5 Function pool zone",
-        "Book Now @ Pre-Launch Price!"
+        "10 Acres of Central Greenery",
+        "Olympics Sized Swimming Pool",
+        "6500+ sq.m. of Massive Clubhouse",
+        "Stay Informed: Sign Up For Updates"
       ],
       showPrice: true,
-      isNewLaunch: true
+      isNewLaunch: false
     },
-    {
+     {
       id: 2,
-      title: "The Aqua Retreat at Godrej Park World",
-      location: "In the heart of Hinjawadi Phase 1",
-      type: "2 & 3 BHK Apartments",
-      price: "₹ 1.14 Cr* Onwards",
-      image: aqua,
+      title: "Godrej Urban Retreat",
+      location: "At Kharadi-Manjari Road, Pune",
+      type: "2 & 3 BHK Luxury Apartments",
+      price: "₹ 85 Lacs* Onwards",
+      image: urban,
       features: [
-        "Aqua Resort Residences",
-        "Near 350+ MNCs & Tech Parks",
-        "Part of a 100-acre integrated township",
-        "Book Now @ Pre-Launch Price!"
-      ],
-      showPrice: false
-    },
-    {
-      id: 3,
-      title: "Godrej Evergreen Square",
-      location: "At Hinjawadi Phase 3, Pune",
-      type: "2 & 3 BHK Apartments",
-      price: "₹ 84.99 Lacs* Onwards",
-      image: evergreen,
-      features: [
-        "25*4 Payment Plan",
-        "Spot Offer ₹ 2.5 Lacs",
-        "Launch Discount Upto ₹ 5 Lacs",
-        "Last Two Towers Available"
+        "10 Acres of Central Greenery",
+        "6500+ sq.m. of Massive Clubhouse",
+        "2000+ sq.m. Of Exclusive Health Centre",
+        "4-Tier Security"
       ],
       showPrice: false,
-      launchingNewTower: true
+      isNewLaunch: false
     },
-    {
-      id: 4,
-      title: "Godrej Prime Gardens",
-      location: "Wagholi, Pune",
-      type: "1, 2 & 3 BHK Apartments",
-      price: "₹ 45.99 Lacs* Onwards",
-      image: greenfront,
+      {
+      id: 3,
+      title: "Godrej River Crest",
+      location: "At Manjari Khurd, Pune",
+      type: "2, 3 & 4 BHK Apartments",
+      price: "₹ 78 Lacs* Onwards",
+      image: river,
       features: [
-        "Ready to Move Homes",
-        "20+ Modern Amenities",
-        "Near IT Parks & Schools",
-        "RERA Approved Project"
+        "Riverfront Living in Manjari Micro-Market",
+        "4.5 Acres of Central Greens",
+        "40+ Lifestyle Amenities",
+        "Grand Clubhouse with River Views"
       ],
-      showPrice: false
-    }
+      showPrice: false,
+      isNewLaunch: false
+    },
   ];
 
   const handleInputChange = (e) => {
@@ -135,7 +123,7 @@ const ProjectsSection = () => {
         </div>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
             <div key={project.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
               {/* Project Image */}
