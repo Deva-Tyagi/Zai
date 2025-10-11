@@ -1,7 +1,8 @@
 {
-  "name": "godrejmulti",
+  "name": "gera-island-of-joy",
   "private": true,
   "version": "0.0.0",
+  "homepage": "/",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,11 +12,17 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@react-three/postprocessing": "^2.19.1",
     "@tailwindcss/vite": "^4.1.11",
+    "emailjs-com": "^3.2.0",
+    "gsap": "^3.13.0",
     "lucide-react": "^0.525.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.7.0"
+    "react-router-dom": "^7.7.0",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

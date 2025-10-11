@@ -1,21 +1,11 @@
-import './App.css'
-import Navbar from './components/navbar/Navbar'
-import Privacy from './components/Privacy/Privacy'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import Hero from './components/sections/Hero';
+import VillaJourney from './components/sections/VillaJourney';
 
-
-function App() {
-
+export default function App(){
   return (
     <>
-    <Router>
-      <Routes>
-        <Route path='/' element={<Navbar />} />
-        <Route path='/privacy' element={<Privacy />} />
-      </Routes>
-      </Router>
+      <Hero />
+      <VillaJourney />
     </>
-  )
+  );
 }
-
-export default App

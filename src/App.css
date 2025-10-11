@@ -1,0 +1,4 @@
+/* src/index.css (or globals.css) */
+html, body, #root { height: 100%; }          /* ensure full-height layout */
+body { margin: 0; overflow-x: hidden; background: #000; }  /* no white edges */
+html { scrollbar-gutter: stable both-edges; } /* optional, prevents shifts */
