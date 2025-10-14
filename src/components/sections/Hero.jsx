@@ -9,7 +9,7 @@ import Scene3D from '../3d/Scene3D';
 import PixelCube from '../3d/Villa/PixelCube';
 import PixelTransition from '../3d/Villa/PixelTransition';
 import VillaLighting from '../3d/Villa/VillaLighting';
-import VillaModel from '../3d/Villa/VillaModel';
+// import VillaModel from '../3d/Villa/VillaModel';
 import useHeroObserver from '../hooks/useHeroObserver';
 
 gsap.registerPlugin(ScrollToPlugin);
@@ -156,11 +156,11 @@ export default function Hero() {
           {phase === 'intro' && <PixelCube />}
           {phase === 'exploding' && <PixelTransition progressRef={explosion} count={240} />}
 
-          {showSil && (
+          {/* {showSil && (
             <group position={[0, -0.25, -2.0]}>
               <VillaModel opacity={silOpacity.current.v} />
             </group>
-          )}
+          )} */}
 
           {phase === 'done' && (
             <ParallaxPlane

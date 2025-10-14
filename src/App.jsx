@@ -1,4 +1,5 @@
 import Hero from './components/sections/Hero';
+import ServiceSection from './components/sections/ServicesSection';
 import VillaJourney from './components/sections/VillaJourney';
 
 export default function App(){
@@ -6,6 +7,7 @@ export default function App(){
     <>
       <Hero />
       <VillaJourney />
+      <ServiceSection />
     </>
   );
 }
