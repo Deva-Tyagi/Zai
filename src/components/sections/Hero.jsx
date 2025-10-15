@@ -1,192 +1,303 @@
-// src/components/sections/Hero.jsx
 import { useRef, useState, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import gsap from 'gsap';
-import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
-import { useThree, useFrame } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
-import Scene3D from '../3d/Scene3D';
-import PixelCube from '../3d/Villa/PixelCube';
-import PixelTransition from '../3d/Villa/PixelTransition';
-import VillaLighting from '../3d/Villa/VillaLighting';
-// import VillaModel from '../3d/Villa/VillaModel';
-import useHeroObserver from '../hooks/useHeroObserver';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { Suspense } from 'react';
 
-gsap.registerPlugin(ScrollToPlugin);
-
-function BackgroundFade({ phase }) {
-  const { gl } = useThree();
+// ===== 3D Components =====
+function BackgroundFade({ phase, gl }) {
   useEffect(() => {
     const from = new THREE.Color('#000000');
     const to = new THREE.Color(phase === 'intro' ? '#000000' : '#F5F0E6');
     const tmp = { t: 0 };
-    gsap.to(tmp, {
-      t: 1,
-      duration: 0.8,
-      ease: 'power2.out',
-      onUpdate: () => gl.setClearColor(from.clone().lerp(to, tmp.t))
+    
+    let anim;
+    const updateColor = () => {
+      gl.setClearColor(from.clone().lerp(to, tmp.t));
+    };
+    
+    anim = requestAnimationFrame(function animate() {
+      if (tmp.t < 1) {
+        tmp.t = Math.min(1, tmp.t + 0.025);
+        updateColor();
+        anim = requestAnimationFrame(animate);
+      }
     });
+    
+    return () => cancelAnimationFrame(anim);
   }, [phase, gl]);
+  
   return null;
 }
 
-function ParallaxPlane({
-  colorUrl = '/textures/villa.jpg',
-  depthUrl = '/textures/villa-depth.png',
-  segments = 256,
-  displacement = 0.45,
-  z = -2.2,
-  moveX = 0.32,
-  moveY = 0.18,
-  damp = 0.10,
-}) {
-  const group = useRef();
-  const [colorTex, depthTex] = useTexture([colorUrl, depthUrl]);
-  const { camera, size } = useThree();
-
-  const { wFull, hFull } = useMemo(() => {
-    const d = Math.abs(camera.position.z - z);
-    const f = (camera.fov * Math.PI) / 180;
-    const h = 2 * Math.tan(f / 2) * d;
-    const w = h * (size.width / size.height);
-    return { wFull: w, hFull: h };
-  }, [camera.position.z, camera.fov, size.width, size.height, z]);
-
-  const [planeW, planeH] = useMemo(() => {
-    const iw = colorTex?.image?.width ?? 1600;
-    const ih = colorTex?.image?.height ?? 900;
-    const a = iw / ih;
-    const v = wFull / hFull;
-    return a > v ? [hFull * a, hFull] : [wFull, wFull / a];
-  }, [colorTex, wFull, hFull]);
-
-  const mouse = useRef({ x: 0, y: 0 });
-  useEffect(() => {
-    const onMove = (e) => {
-      const x = (e.clientX / window.innerWidth) * 2 - 1;
-      const y = -((e.clientY / window.innerHeight) * 2 - 1);
-      mouse.current.x = Math.max(-1, Math.min(1, x));
-      mouse.current.y = Math.max(-1, Math.min(1, y));
-    };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => window.removeEventListener('mousemove', onMove);
-  }, []);
-
-  useFrame(() => {
-    if (!group.current) return;
-    const px = mouse.current.x;
-    const py = mouse.current.y;
-    const targetX = px * moveX;
-    const targetY = py * moveY;
-    group.current.position.x += (targetX - group.current.position.x) * damp;
-    group.current.position.y += (targetY - group.current.position.y) * damp;
+function PixelCube() {
+  const ref = useRef();
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    if (!ref.current) return;
+    const s = 1 + Math.sin(t * 2) * 0.08;
+    ref.current.scale.set(s, s, s);
+    ref.current.rotation.y = t * 0.5;
+    ref.current.position.y = Math.sin(t * 1.4) * 0.25;
   });
-
   return (
-    <group ref={group} position={[0, 0, z]}>
-      <mesh>
-        <planeGeometry args={[planeW, planeH, segments, segments]} />
-        <meshStandardMaterial
-          map={colorTex}
-          displacementMap={depthTex}
-          displacementScale={displacement}
-          roughness={0.8}
-          metalness={0}
-        />
-      </mesh>
-    </group>
+    <mesh ref={ref}>
+      <boxGeometry args={[1.2, 1.2, 1.2]} />
+      <meshStandardMaterial 
+        color="#6A4C93" 
+        emissive="#6A4C93" 
+        emissiveIntensity={0.35} 
+        roughness={0.4} 
+        metalness={0.1}
+      />
+    </mesh>
   );
 }
 
-export default function Hero() {
-  // active=false after hero completes to stop intercepting input and restore native scroll
-  const [done, setDone] = useState(false);
-  const { anim } = useHeroObserver({ active: !done, sensitivity: 0.0016, ease: 0.10 });
+function PixelTransition({ progressRef, count = 240 }) {
+  const meshRef = useRef();
+  const sp = useRef(0);
 
-  const [phase, setPhase] = useState('intro'); // 'intro' -> 'exploding' -> 'revealing' -> 'done'
-  const explosion = useRef({ value: 0 });
-  const [showSil, setShowSil] = useState(false);
-  const silOpacity = useRef({ v: 0 });
+  const seeds = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < count; i++) {
+      const dir = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5
+      ).normalize();
+      const dist = 3 + Math.random() * 3;
+      const rot = new THREE.Euler(
+        Math.random() * Math.PI,
+        Math.random() * Math.PI,
+        Math.random() * Math.PI
+      );
+      const seed = Math.random() * Math.PI * 2;
+      arr.push({ dir, dist, rot, seed });
+    }
+    return arr;
+  }, [count]);
 
-  // Lock/unlock page scroll
+  const m4 = useMemo(() => new THREE.Matrix4(), []);
+  const pos = useMemo(() => new THREE.Vector3(), []);
+  const quat = useMemo(() => new THREE.Quaternion(), []);
+  const scl = useMemo(() => new THREE.Vector3(1, 1, 1), []);
+
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    const raw = progressRef.current.value || 0;
+    const smooth = Math.min(1, Math.max(0, raw));
+    const ease = 3 * smooth * smooth - 2 * smooth * smooth * smooth;
+    sp.current += (ease - sp.current) * 0.08;
+
+    const t = state.clock.getElapsedTime();
+    for (let i = 0; i < count; i++) {
+      const { dir, dist, rot, seed } = seeds[i];
+      pos.copy(dir).multiplyScalar(dist * sp.current);
+
+      const floatAmt = 0.14 * Math.min(1, Math.max(0, sp.current - 0.85) / 0.15);
+      if (floatAmt > 0) {
+        pos.x += Math.sin(t * 0.6 + seed) * floatAmt * 0.35;
+        pos.y += Math.cos(t * 0.7 + seed * 1.3) * floatAmt * 0.45;
+        pos.z += Math.sin(t * 0.5 + seed * 0.7) * floatAmt * 0.3;
+      }
+
+      const s = 0.26 * (1 - 0.28 * sp.current);
+      scl.set(s, s, s);
+
+      const rx = rot.x * sp.current + floatAmt * 0.3 * Math.sin(t * 0.4 + seed);
+      const ry = rot.y * sp.current + floatAmt * 0.35 * Math.cos(t * 0.45 + seed * 0.6);
+      const rz = rot.z * sp.current + floatAmt * 0.25 * Math.sin(t * 0.38 + seed * 1.2);
+      quat.setFromEuler(new THREE.Euler(rx, ry, rz));
+
+      m4.compose(pos, quat, scl);
+      meshRef.current.setMatrixAt(i, m4);
+    }
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, count]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial
+        color="#6A4C93"
+        emissive="#6A4C93"
+        emissiveIntensity={1.4}
+        roughness={0.6}
+        toneMapped={false}
+      />
+    </instancedMesh>
+  );
+}
+
+function VillaLighting() {
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight 
+        position={[7, 10, 6]} 
+        intensity={1.15} 
+        color="#FFB75D" 
+        castShadow 
+      />
+      <directionalLight 
+        position={[-7, 6, -3]} 
+        intensity={0.35} 
+        color="#6A4C93" 
+      />
+    </>
+  );
+}
+
+function Scene3DContent({ phase, explosion }) {
+  const { gl } = useThree();
+  return (
+    <>
+      <BackgroundFade phase={phase} gl={gl} />
+      <VillaLighting />
+      {phase === 'intro' && <PixelCube />}
+      {phase === 'exploding' && <PixelTransition progressRef={explosion} count={240} />}
+    </>
+  );
+}
+
+// ===== Hook for scroll observer =====
+function useHeroObserver({ active = true, sensitivity = 0.0016, ease = 0.1 } = {}) {
+  const [progress, setProgress] = useState(0);
+  const [anim, setAnim] = useState(0);
+
   useEffect(() => {
-    if (!done) document.body.classList.add('no-scroll');
-    else document.body.classList.remove('no-scroll');
+    let animId;
+    const tick = () => {
+      setAnim((prev) => {
+        const next = prev + (progress - prev) * ease;
+        return Math.abs(next - prev) > 0.0001 ? next : prev;
+      });
+      animId = requestAnimationFrame(tick);
+    };
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [progress, ease]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      setProgress((p) => Math.min(1, Math.max(0, p + e.deltaY * sensitivity)));
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        setProgress((p) => Math.min(1, Math.max(0, p + touch.clientY * sensitivity)));
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [active, sensitivity]);
+
+  return { progress, anim, setProgress };
+}
+
+// ===== Main Hero Component =====
+export default function Hero() {
+  const [done, setDone] = useState(false);
+  const [isDayMode, setIsDayMode] = useState(true);
+  const { anim } = useHeroObserver({ active: !done, sensitivity: 0.0016, ease: 0.1 });
+
+  const [phase, setPhase] = useState('intro');
+  const explosion = useRef({ value: 0 });
+
+  useEffect(() => {
+    if (!done) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
   }, [done]);
 
-  // Map anim -> acts; release when done and scroll to the next section
   useEffect(() => {
     const p = anim || 0;
 
-    if (p < 0.10) {
+    if (p < 0.1) {
       setPhase('intro');
       explosion.current.value = 0;
-      setShowSil(false);
-    } else if (p < 0.30) {
+    } else if (p < 0.3) {
       setPhase('exploding');
-      explosion.current.value = Math.min(1, Math.max(0, (p - 0.10) / 0.20)); // slower breakup window
-      setShowSil(false);
-    } else if (p < 0.55) {
-      setPhase('revealing');
-      if (!showSil) setShowSil(true);
-      const local = (p - 0.30) / 0.25;
-      silOpacity.current.v = 1 - Math.min(1, Math.max(0, local));
+      explosion.current.value = Math.min(1, Math.max(0, (p - 0.1) / 0.2));
     } else {
       setPhase('done');
-      setShowSil(false);
       explosion.current.value = 1;
-      silOpacity.current.v = 0;
 
       if (!done) {
-        setDone(true); // disable observer and unlock body
+        setDone(true);
         const next = document.querySelector('#villa-journey');
-        if (next) gsap.to(window, { duration: 0.8, scrollTo: next, ease: 'power2.out' });
+        if (next) {
+          setTimeout(() => {
+            next.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
       }
     }
-  }, [anim, showSil, done]);
+  }, [anim, done]);
 
   return (
-    // w-full avoids the 100vw scrollbar gap
-    <section className="hero relative w-full min-h-screen overflow-hidden">
+    <section className="hero relative w-full min-h-screen overflow-hidden bg-black">
+      {/* 3D Canvas */}
       <div className="absolute inset-0 z-[1]">
-        <Scene3D>
-          <BackgroundFade phase={phase} />
-          <VillaLighting />
-
-          {phase === 'intro' && <PixelCube />}
-          {phase === 'exploding' && <PixelTransition progressRef={explosion} count={240} />}
-
-          {/* {showSil && (
-            <group position={[0, -0.25, -2.0]}>
-              <VillaModel opacity={silOpacity.current.v} />
-            </group>
-          )} */}
-
-          {phase === 'done' && (
-            <ParallaxPlane
-              colorUrl="/textures/villa.jpg"
-              depthUrl="/textures/villa-depth.png"
-              displacement={0.45}
-              segments={256}
-              z={-2.2}
-              moveX={0.32}
-              moveY={0.18}
-              damp={0.10}
-            />
-          )}
-        </Scene3D>
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 75 }}
+          gl={{ antialias: true, alpha: false }}
+          eventSource={document.body}
+          eventPrefix="client"
+        >
+          <Suspense fallback={null}>
+            <Scene3DContent phase={phase} explosion={explosion} />
+          </Suspense>
+        </Canvas>
       </div>
 
-      {/* <div className={`absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-700 ${phase === 'done' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="text-center max-w-[820px] px-5">
-          <h1 className="font-['Playfair_Display'] font-bold text-[clamp(2.2rem,6vw,4.4rem)] leading-tight text-[#2D1B3D] mb-5">
-            Premium Interior<br/><span className="text-[#6A4C93]">Design Experience</span>
-          </h1>
-          <p className="text-[clamp(1rem,2.2vw,1.25rem)] text-[#2D1B3D]/85 leading-relaxed">
-            High-end visual design and storytelling studio specializing in 3D, animation, and immersive narratives
-          </p>
+      {/* Villa Image Section */}
+      <div
+        className={`absolute inset-0 z-[2] transition-opacity duration-500 ${
+          phase === 'done' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="relative w-full h-full">
+          {/* Toggle Button */}
+          <button
+            onClick={() => setIsDayMode(!isDayMode)}
+            className="absolute top-8 left-8 z-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-6 py-3 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border border-white/30"
+          >
+            <span className="text-lg">{isDayMode ? '🌙' : '☀️'}</span>
+            <span>{isDayMode ? 'Night' : 'Day'}</span>
+          </button>
+
+          {/* Day View Image */}
+          <img
+            src="/textures/villaDay.jpg"
+            alt="Villa Day View"
+            className={`w-full h-full bg-center bg-cover bg-no-repeat transition-opacity duration-500 ${
+              isDayMode ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+
+          {/* Night View Image */}
+          <img
+            src="/textures/villaNight.jpg"
+            alt="Villa Night View"
+            className={`absolute inset-0 w-full h-full bg-center bg-cover bg-no-repeat transition-opacity duration-500 ${
+              !isDayMode ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
         </div>
-      </div> */}
+      </div>
     </section>
   );
 }
