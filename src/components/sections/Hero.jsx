@@ -29,6 +29,232 @@ function BackgroundFade({ phase, gl }) {
   return null;
 }
 
+// ===== Animated Particle Background =====
+function ParticleBackground() {
+  const pointsRef = useRef();
+  const count = 800;
+
+  const particles = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const velocities = [];
+    
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 20;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+      
+      velocities.push({
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.02,
+        z: (Math.random() - 0.5) * 0.02
+      });
+    }
+    
+    return { positions, velocities };
+  }, []);
+
+  useFrame((state) => {
+    if (!pointsRef.current) return;
+    
+    const positions = pointsRef.current.geometry.attributes.position.array;
+    const time = state.clock.elapsedTime;
+    
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      
+      // Floating animation
+      positions[i3] += particles.velocities[i].x;
+      positions[i3 + 1] += particles.velocities[i].y;
+      positions[i3 + 2] += particles.velocities[i].z;
+      
+      // Wave effect
+      positions[i3 + 1] += Math.sin(time + i * 0.1) * 0.003;
+      
+      // Boundary wrapping
+      if (Math.abs(positions[i3]) > 10) positions[i3] *= -0.95;
+      if (Math.abs(positions[i3 + 1]) > 10) positions[i3 + 1] *= -0.95;
+      if (Math.abs(positions[i3 + 2]) > 7) positions[i3 + 2] *= -0.95;
+    }
+    
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={particles.positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.08}
+        color="#8B7FBD"
+        transparent
+        opacity={0.6}
+        sizeAttenuation
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  );
+}
+
+// ===== Geometric Lines Background =====
+function GeometricLines() {
+  const linesRef = useRef();
+  const lineCount = 60;
+
+  const lineData = useMemo(() => {
+    const positions = [];
+    
+    for (let i = 0; i < lineCount; i++) {
+      const angle = (i / lineCount) * Math.PI * 2;
+      const radius = 8 + Math.random() * 4;
+      const z = (Math.random() - 0.5) * 10;
+      
+      // Create line from center outward
+      positions.push(0, 0, 0);
+      positions.push(
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius,
+        z
+      );
+    }
+    
+    return new Float32Array(positions);
+  }, []);
+
+  useFrame((state) => {
+    if (!linesRef.current) {
+      return;
+    }
+    const time = state.clock.elapsedTime;
+    linesRef.current.rotation.z = time * 0.1;
+    linesRef.current.rotation.y = time * 0.05;
+  });
+
+  return (
+    <lineSegments ref={linesRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={lineCount * 2}
+          array={lineData}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial
+        color="#6A4C93"
+        transparent
+        opacity={0.2}
+        blending={THREE.AdditiveBlending}
+      />
+    </lineSegments>
+  );
+}
+
+// ===== Orbiting Rings =====
+function OrbitingRings() {
+  const ring1Ref = useRef();
+  const ring2Ref = useRef();
+  const ring3Ref = useRef();
+
+  useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    
+    if (ring1Ref.current) {
+      ring1Ref.current.rotation.x = time * 0.3;
+      ring1Ref.current.rotation.y = time * 0.2;
+    }
+    
+    if (ring2Ref.current) {
+      ring2Ref.current.rotation.x = time * -0.25;
+      ring2Ref.current.rotation.z = time * 0.15;
+    }
+    
+    if (ring3Ref.current) {
+      ring3Ref.current.rotation.y = time * 0.35;
+      ring3Ref.current.rotation.z = time * -0.2;
+    }
+  });
+
+  return (
+    <group>
+      <mesh ref={ring1Ref}>
+        <torusGeometry args={[3.5, 0.02, 16, 100]} />
+        <meshBasicMaterial color="#6A4C93" transparent opacity={0.3} />
+      </mesh>
+      
+      <mesh ref={ring2Ref}>
+        <torusGeometry args={[4.2, 0.015, 16, 100]} />
+        <meshBasicMaterial color="#8B7FBD" transparent opacity={0.25} />
+      </mesh>
+      
+      <mesh ref={ring3Ref}>
+        <torusGeometry args={[4.8, 0.01, 16, 100]} />
+        <meshBasicMaterial color="#A899D8" transparent opacity={0.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// ===== Floating Spheres =====
+function FloatingSpheres() {
+  const spheresRef = useRef();
+  const count = 12;
+
+  const sphereData = useMemo(() => {
+    const data = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const radius = 6 + Math.random() * 2;
+      data.push({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        z: (Math.random() - 0.5) * 8,
+        speed: 0.5 + Math.random() * 0.5,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    return data;
+  }, []);
+
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useFrame((state) => {
+    if (!spheresRef.current) return;
+    
+    const time = state.clock.elapsedTime;
+    
+    sphereData.forEach((sphere, i) => {
+      dummy.position.set(
+        sphere.x + Math.sin(time * sphere.speed + sphere.phase) * 0.5,
+        sphere.y + Math.cos(time * sphere.speed + sphere.phase) * 0.5,
+        sphere.z + Math.sin(time * 0.3 + sphere.phase) * 0.3
+      );
+      dummy.scale.setScalar(0.15 + Math.sin(time * 2 + sphere.phase) * 0.05);
+      dummy.updateMatrix();
+      spheresRef.current.setMatrixAt(i, dummy.matrix);
+    });
+    
+    spheresRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={spheresRef} args={[null, null, count]}>
+      <sphereGeometry args={[1, 16, 16]} />
+      <meshBasicMaterial
+        color="#8B7FBD"
+        transparent
+        opacity={0.15}
+        blending={THREE.AdditiveBlending}
+      />
+    </instancedMesh>
+  );
+}
+
 function PixelCube() {
   const ref = useRef();
   useFrame((state) => {
@@ -154,6 +380,17 @@ function Scene3DContent({ phase, explosion }) {
     <>
       <BackgroundFade phase={phase} gl={gl} />
       <VillaLighting />
+      
+      {/* Animated backgrounds only visible in intro phase */}
+      {phase === 'intro' && (
+        <>
+          <ParticleBackground />
+          <GeometricLines />
+          <OrbitingRings />
+          <FloatingSpheres />
+        </>
+      )}
+      
       {phase === 'intro' && <PixelCube />}
       {phase === 'exploding' && <PixelTransition progressRef={explosion} count={240} />}
     </>
