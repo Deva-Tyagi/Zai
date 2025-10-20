@@ -2,257 +2,21 @@ import { useRef, useState, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Suspense } from 'react';
+import VillaJourney from './VillaJourney';
 
 // ===== 3D Components =====
 function BackgroundFade({ phase, gl }) {
   useEffect(() => {
-    const from = new THREE.Color('#000000');
-    const to = new THREE.Color(phase === 'intro' ? '#000000' : '#F5F0E6');
-    const tmp = { t: 0 };
-    
-    let anim;
-    const updateColor = () => {
-      gl.setClearColor(from.clone().lerp(to, tmp.t));
-    };
-    
-    anim = requestAnimationFrame(function animate() {
-      if (tmp.t < 1) {
-        tmp.t = Math.min(1, tmp.t + 0.025);
-        updateColor();
-        anim = requestAnimationFrame(animate);
-      }
-    });
-    
-    return () => cancelAnimationFrame(anim);
+    let color;
+    if (phase === 'intro' || phase === 'exploding') {
+      color = '#000000';
+    } else {
+      color = '#F5F0E6';
+    }
+    gl.setClearColor(new THREE.Color(color));
   }, [phase, gl]);
   
   return null;
-}
-
-// ===== Animated Particle Background =====
-function ParticleBackground() {
-  const pointsRef = useRef();
-  const count = 800;
-
-  const particles = useMemo(() => {
-    const positions = new Float32Array(count * 3);
-    const velocities = [];
-    
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
-      
-      velocities.push({
-        x: (Math.random() - 0.5) * 0.02,
-        y: (Math.random() - 0.5) * 0.02,
-        z: (Math.random() - 0.5) * 0.02
-      });
-    }
-    
-    return { positions, velocities };
-  }, []);
-
-  useFrame((state) => {
-    if (!pointsRef.current) return;
-    
-    const positions = pointsRef.current.geometry.attributes.position.array;
-    const time = state.clock.elapsedTime;
-    
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      
-      // Floating animation
-      positions[i3] += particles.velocities[i].x;
-      positions[i3 + 1] += particles.velocities[i].y;
-      positions[i3 + 2] += particles.velocities[i].z;
-      
-      // Wave effect
-      positions[i3 + 1] += Math.sin(time + i * 0.1) * 0.003;
-      
-      // Boundary wrapping
-      if (Math.abs(positions[i3]) > 10) positions[i3] *= -0.95;
-      if (Math.abs(positions[i3 + 1]) > 10) positions[i3 + 1] *= -0.95;
-      if (Math.abs(positions[i3 + 2]) > 7) positions[i3 + 2] *= -0.95;
-    }
-    
-    pointsRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
-  return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={particles.positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.08}
-        color="#8B7FBD"
-        transparent
-        opacity={0.6}
-        sizeAttenuation
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
-
-// ===== Geometric Lines Background =====
-function GeometricLines() {
-  const linesRef = useRef();
-  const lineCount = 60;
-
-  const lineData = useMemo(() => {
-    const positions = [];
-    
-    for (let i = 0; i < lineCount; i++) {
-      const angle = (i / lineCount) * Math.PI * 2;
-      const radius = 8 + Math.random() * 4;
-      const z = (Math.random() - 0.5) * 10;
-      
-      // Create line from center outward
-      positions.push(0, 0, 0);
-      positions.push(
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius,
-        z
-      );
-    }
-    
-    return new Float32Array(positions);
-  }, []);
-
-  useFrame((state) => {
-    if (!linesRef.current) {
-      return;
-    }
-    const time = state.clock.elapsedTime;
-    linesRef.current.rotation.z = time * 0.1;
-    linesRef.current.rotation.y = time * 0.05;
-  });
-
-  return (
-    <lineSegments ref={linesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={lineCount * 2}
-          array={lineData}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color="#6A4C93"
-        transparent
-        opacity={0.2}
-        blending={THREE.AdditiveBlending}
-      />
-    </lineSegments>
-  );
-}
-
-// ===== Orbiting Rings =====
-function OrbitingRings() {
-  const ring1Ref = useRef();
-  const ring2Ref = useRef();
-  const ring3Ref = useRef();
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    
-    if (ring1Ref.current) {
-      ring1Ref.current.rotation.x = time * 0.3;
-      ring1Ref.current.rotation.y = time * 0.2;
-    }
-    
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.x = time * -0.25;
-      ring2Ref.current.rotation.z = time * 0.15;
-    }
-    
-    if (ring3Ref.current) {
-      ring3Ref.current.rotation.y = time * 0.35;
-      ring3Ref.current.rotation.z = time * -0.2;
-    }
-  });
-
-  return (
-    <group>
-      <mesh ref={ring1Ref}>
-        <torusGeometry args={[3.5, 0.02, 16, 100]} />
-        <meshBasicMaterial color="#6A4C93" transparent opacity={0.3} />
-      </mesh>
-      
-      <mesh ref={ring2Ref}>
-        <torusGeometry args={[4.2, 0.015, 16, 100]} />
-        <meshBasicMaterial color="#8B7FBD" transparent opacity={0.25} />
-      </mesh>
-      
-      <mesh ref={ring3Ref}>
-        <torusGeometry args={[4.8, 0.01, 16, 100]} />
-        <meshBasicMaterial color="#A899D8" transparent opacity={0.2} />
-      </mesh>
-    </group>
-  );
-}
-
-// ===== Floating Spheres =====
-function FloatingSpheres() {
-  const spheresRef = useRef();
-  const count = 12;
-
-  const sphereData = useMemo(() => {
-    const data = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2;
-      const radius = 6 + Math.random() * 2;
-      data.push({
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        z: (Math.random() - 0.5) * 8,
-        speed: 0.5 + Math.random() * 0.5,
-        phase: Math.random() * Math.PI * 2
-      });
-    }
-    return data;
-  }, []);
-
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-
-  useFrame((state) => {
-    if (!spheresRef.current) return;
-    
-    const time = state.clock.elapsedTime;
-    
-    sphereData.forEach((sphere, i) => {
-      dummy.position.set(
-        sphere.x + Math.sin(time * sphere.speed + sphere.phase) * 0.5,
-        sphere.y + Math.cos(time * sphere.speed + sphere.phase) * 0.5,
-        sphere.z + Math.sin(time * 0.3 + sphere.phase) * 0.3
-      );
-      dummy.scale.setScalar(0.15 + Math.sin(time * 2 + sphere.phase) * 0.05);
-      dummy.updateMatrix();
-      spheresRef.current.setMatrixAt(i, dummy.matrix);
-    });
-    
-    spheresRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={spheresRef} args={[null, null, count]}>
-      <sphereGeometry args={[1, 16, 16]} />
-      <meshBasicMaterial
-        color="#8B7FBD"
-        transparent
-        opacity={0.15}
-        blending={THREE.AdditiveBlending}
-      />
-    </instancedMesh>
-  );
 }
 
 function PixelCube() {
@@ -279,7 +43,7 @@ function PixelCube() {
   );
 }
 
-function PixelTransition({ progressRef, count = 240 }) {
+function PixelExplosion({ progressRef, count = 240 }) {
   const meshRef = useRef();
   const sp = useRef(0);
 
@@ -380,20 +144,166 @@ function Scene3DContent({ phase, explosion }) {
     <>
       <BackgroundFade phase={phase} gl={gl} />
       <VillaLighting />
-      
-      {/* Animated backgrounds only visible in intro phase */}
-      {phase === 'intro' && (
-        <>
-          <ParticleBackground />
-          <GeometricLines />
-          <OrbitingRings />
-          <FloatingSpheres />
-        </>
-      )}
-      
       {phase === 'intro' && <PixelCube />}
-      {phase === 'exploding' && <PixelTransition progressRef={explosion} count={240} />}
+      {phase === 'exploding' && <PixelExplosion progressRef={explosion} count={240} />}
     </>
+  );
+}
+
+// ===== Pixel Overlay Canvas Component =====
+function PixelOverlay({ onComplete }) {
+  const canvasRef = useRef(null);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const pixelGridRef = useRef([]);
+  const mouseTrailRef = useRef([]);
+  const startTimeRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    const gridSize = 180;
+    const pixelSize = Math.ceil(canvas.width / gridSize);
+    const rows = Math.ceil(canvas.height / pixelSize);
+    const cols = Math.ceil(canvas.width / pixelSize);
+
+    const pastelColors = [
+      '#E8B4A8', '#C8B8DB', '#F5DEB3', '#A8B896', '#A8D5E2', '#6A4C93'
+    ];
+
+    pixelGridRef.current = [];
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        pixelGridRef.current.push({
+          x: j * pixelSize,
+          y: i * pixelSize,
+          size: pixelSize,
+          color: pastelColors[Math.floor(Math.random() * pastelColors.length)],
+          opacity: 0.95,
+          active: true,
+          delay: Math.random() * 2000,
+          blur: 20 + Math.random() * 15
+        });
+      }
+    }
+
+    setIsRevealing(true);
+    startTimeRef.current = Date.now();
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const elapsed = Date.now() - startTimeRef.current;
+      const autoDissolve = elapsed > 5000;
+
+      let activeCount = 0;
+
+      pixelGridRef.current.forEach((pixel) => {
+        if (!pixel.active) return;
+
+        if (autoDissolve) {
+          const dissolveProgress = Math.min(1, (elapsed - 5000 - pixel.delay) / 1500);
+          pixel.opacity = Math.max(0, 0.95 - dissolveProgress);
+          if (pixel.opacity <= 0) {
+            pixel.active = false;
+            return;
+          }
+        }
+
+        if (pixel.opacity > 0) {
+          activeCount++;
+          ctx.shadowBlur = pixel.blur;
+          ctx.shadowColor = pixel.color;
+          ctx.globalAlpha = pixel.opacity;
+          ctx.fillStyle = pixel.color;
+          ctx.fillRect(pixel.x, pixel.y, pixel.size, pixel.size);
+        } else {
+          pixel.active = false;
+        }
+      });
+
+      mouseTrailRef.current.forEach((trail, idx) => {
+        ctx.beginPath();
+        ctx.arc(trail.x, trail.y, trail.radius, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(trail.x, trail.y, 0, trail.x, trail.y, trail.radius);
+        gradient.addColorStop(0, `rgba(106, 76, 147, ${trail.opacity * 0.8})`);
+        gradient.addColorStop(0.5, `rgba(106, 76, 147, ${trail.opacity * 0.4})`);
+        gradient.addColorStop(1, `rgba(106, 76, 147, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        trail.radius += 3;
+        trail.opacity -= 0.03;
+        
+        if (trail.opacity <= 0) {
+          mouseTrailRef.current.splice(idx, 1);
+        }
+      });
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+
+      if (activeCount === 0) {
+        onComplete();
+      }
+    };
+
+    const animationFrame = setInterval(draw, 1000 / 60);
+
+    const handleMouseMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      mouseTrailRef.current.push({
+        x: mouseX,
+        y: mouseY,
+        radius: 30,
+        opacity: 0.6
+      });
+
+      if (mouseTrailRef.current.length > 15) {
+        mouseTrailRef.current.shift();
+      }
+
+      const removeRadius = 140;
+      pixelGridRef.current.forEach((pixel) => {
+        if (!pixel.active) return;
+        
+        const dx = pixel.x + pixel.size / 2 - mouseX;
+        const dy = pixel.y + pixel.size / 2 - mouseY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < removeRadius) {
+          const fadeSpeed = 0.25;
+          const distanceFactor = (1 - distance / removeRadius);
+          pixel.opacity -= fadeSpeed * distanceFactor * distanceFactor;
+          if (pixel.opacity <= 0) {
+            pixel.active = false;
+          }
+        }
+      });
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      clearInterval(animationFrame);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [onComplete]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-auto cursor-crosshair"
+      style={{ zIndex: 10 }}
+    />
   );
 }
 
@@ -423,19 +333,10 @@ function useHeroObserver({ active = true, sensitivity = 0.0016, ease = 0.1 } = {
       setProgress((p) => Math.min(1, Math.max(0, p + e.deltaY * sensitivity)));
     };
 
-    const handleTouchMove = (e) => {
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        setProgress((p) => Math.min(1, Math.max(0, p + touch.clientY * sensitivity)));
-      }
-    };
-
     window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchmove', handleTouchMove);
     };
   }, [active, sensitivity]);
 
@@ -444,20 +345,103 @@ function useHeroObserver({ active = true, sensitivity = 0.0016, ease = 0.1 } = {
 
 // ===== Main Hero Component =====
 export default function Hero() {
-  const [done, setDone] = useState(false);
+  const [showPixelOverlay, setShowPixelOverlay] = useState(false);
+  const [pixelComplete, setPixelComplete] = useState(false);
   const [isDayMode, setIsDayMode] = useState(true);
-  const { anim } = useHeroObserver({ active: !done, sensitivity: 0.0016, ease: 0.1 });
+  const [zoomProgress, setZoomProgress] = useState(0);
+  const [enableZoom, setEnableZoom] = useState(false);
+  const { anim } = useHeroObserver({ active: !enableZoom, sensitivity: 0.0016, ease: 0.1 });
 
   const [phase, setPhase] = useState('intro');
   const explosion = useRef({ value: 0 });
+  const scrollAccumulatorRef = useRef(0);
 
   useEffect(() => {
-    if (!done) {
+    if (!enableZoom) {
       document.body.classList.add('no-scroll');
+      document.body.style.overflow = 'hidden';
     } else {
       document.body.classList.remove('no-scroll');
+      
+      if (zoomProgress >= 1) {
+        document.body.style.overflow = 'visible';
+        document.documentElement.style.overflow = 'visible';
+      } else {
+        document.body.style.overflow = 'hidden';
+      }
     }
-  }, [done]);
+
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.documentElement.style.margin = '0';
+    document.documentElement.style.padding = '0';
+  }, [enableZoom, zoomProgress]);
+
+  useEffect(() => {
+    if (!enableZoom) return;
+
+    const scrollThreshold = 1200;
+
+    const handleWheel = (e) => {
+      if (zoomProgress < 1) {
+        e.preventDefault();
+        
+        // Only accumulate downward scrolls
+        if (e.deltaY > 0) {
+          scrollAccumulatorRef.current += e.deltaY;
+        } else {
+          // Allow scroll up but slower
+          scrollAccumulatorRef.current += e.deltaY * 0.3;
+        }
+        
+        // Clamp to prevent negative values
+        scrollAccumulatorRef.current = Math.max(0, scrollAccumulatorRef.current);
+        
+        const newProgress = Math.min(1, scrollAccumulatorRef.current / scrollThreshold);
+        setZoomProgress(newProgress);
+      }
+    };
+
+    let touchStartY = 0;
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 1) {
+        if (zoomProgress < 1) {
+          e.preventDefault();
+          const touchY = e.touches[0].clientY;
+          const delta = touchStartY - touchY;
+          
+          if (delta > 0) {
+            scrollAccumulatorRef.current += delta * 2;
+          } else {
+            scrollAccumulatorRef.current += delta * 0.5;
+          }
+          
+          scrollAccumulatorRef.current = Math.max(0, scrollAccumulatorRef.current);
+          
+          const newProgress = Math.min(1, scrollAccumulatorRef.current / scrollThreshold);
+          setZoomProgress(newProgress);
+          touchStartY = touchY;
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [enableZoom, zoomProgress]);
 
   useEffect(() => {
     const p = anim || 0;
@@ -465,29 +449,53 @@ export default function Hero() {
     if (p < 0.1) {
       setPhase('intro');
       explosion.current.value = 0;
-    } else if (p < 0.3) {
+    } else if (p < 0.35) {
       setPhase('exploding');
-      explosion.current.value = Math.min(1, Math.max(0, (p - 0.1) / 0.2));
+      explosion.current.value = Math.min(1, Math.max(0, (p - 0.1) / 0.25));
     } else {
-      setPhase('done');
-      explosion.current.value = 1;
-
-      if (!done) {
-        setDone(true);
-        const next = document.querySelector('#villa-journey');
-        if (next) {
-          setTimeout(() => {
-            next.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
-        }
+      if (phase !== 'done') {
+        setPhase('done');
+        explosion.current.value = 1;
+        setShowPixelOverlay(true);
       }
     }
-  }, [anim, done]);
+  }, [anim, phase]);
+
+  const handlePixelComplete = () => {
+    setPixelComplete(true);
+    setEnableZoom(true);
+  };
+
+  const scaleValue = 1 + zoomProgress * 2;
+  const translateValue = -zoomProgress * 60;
 
   return (
-    <section className="hero relative w-full min-h-screen overflow-hidden bg-black">
-      {/* 3D Canvas */}
-      <div className="absolute inset-0 z-[1]">
+    <section className="hero relative w-full h-screen" style={{ 
+      margin: 0, 
+      padding: 0,
+      overflow: zoomProgress >= 1 ? 'visible' : 'hidden',
+      minHeight: zoomProgress >= 1 ? 'auto' : '100vh'
+    }}>
+      <style>
+        {`
+          body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow-x: hidden;
+          }
+          .hero {
+            margin: 0;
+            padding: 0;
+          }
+        `}
+      </style>
+      
+      <div 
+        className={`absolute inset-0 transition-opacity duration-500 ${
+          phase === 'done' ? 'opacity-0 pointer-events-none z-[0]' : 'opacity-100 z-[1]'
+        }`}
+      >
         <Canvas
           camera={{ position: [0, 0, 5], fov: 75 }}
           gl={{ antialias: true, alpha: false }}
@@ -500,41 +508,81 @@ export default function Hero() {
         </Canvas>
       </div>
 
-      {/* Villa Image Section */}
       <div
-        className={`absolute inset-0 z-[2] transition-opacity duration-500 ${
-          phase === 'done' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`absolute inset-0 ${
+          zoomProgress >= 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
+        style={{
+          transform: enableZoom 
+            ? `scale(${scaleValue}) translateY(${translateValue}%)`
+            : 'scale(1)',
+          transformOrigin: '50% 30%',
+          transition: zoomProgress >= 1 ? 'opacity 1s ease-out' : 'none',
+          willChange: 'transform',
+          margin: 0,
+          padding: 0,
+        }}
       >
-        <div className="relative w-full h-full">
-          {/* Toggle Button */}
+        <div className="relative w-full h-full" style={{ margin: 0, padding: 0 }}>
           <button
             onClick={() => setIsDayMode(!isDayMode)}
-            className="absolute top-8 left-8 z-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-6 py-3 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border border-white/30"
+            className="absolute top-4 left-4 z-20 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border border-white/30"
+            style={{ opacity: pixelComplete ? 1 : 0, pointerEvents: pixelComplete ? 'auto' : 'none' }}
           >
             <span className="text-lg">{isDayMode ? '🌙' : '☀️'}</span>
             <span>{isDayMode ? 'Night' : 'Day'}</span>
           </button>
 
-          {/* Day View Image */}
           <img
             src="/textures/villaDay.jpg"
             alt="Villa Day View"
-            className={`w-full h-full bg-center bg-cover bg-no-repeat transition-opacity duration-500 ${
-              isDayMode ? 'opacity-100' : 'opacity-0'
-            }`}
+            className="w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{ opacity: isDayMode ? 1 : 0, transition: 'opacity 0.5s ease-out', margin: 0, padding: 0 }}
           />
 
-          {/* Night View Image */}
           <img
             src="/textures/villaNight.jpg"
             alt="Villa Night View"
-            className={`absolute inset-0 w-full h-full bg-center bg-cover bg-no-repeat transition-opacity duration-500 ${
-              !isDayMode ? 'opacity-100' : 'opacity-0'
-            }`}
+            className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{ opacity: !isDayMode ? 1 : 0, transition: 'opacity 0.5s ease-out', margin: 0, padding: 0 }}
           />
+
+          {showPixelOverlay && !pixelComplete && (
+            <PixelOverlay onComplete={handlePixelComplete} />
+          )}
         </div>
       </div>
+
+      <div
+        className={`${zoomProgress >= 1 ? 'relative' : 'absolute inset-0'} transition-opacity duration-1000 ${
+          zoomProgress >= 1 ? 'opacity-100 z-[3] pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{ margin: 0, padding: 0 }}
+      >
+        <VillaJourney />
+      </div>
+
+      {showPixelOverlay && !pixelComplete && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[20] text-white text-center">
+          <div className="bg-black/50 backdrop-blur-md px-6 py-3 rounded-full animate-pulse">
+            Move your cursor to reveal the villa ✨
+          </div>
+        </div>
+      )}
+
+      {pixelComplete && zoomProgress < 1 && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[20] text-white text-center">
+          <div className="bg-black/50 backdrop-blur-md px-6 py-3 rounded-full animate-bounce">
+            Scroll to zoom into the villa gate 🏛️
+          </div>
+        </div>
+      )}
+
+      {!showPixelOverlay && !pixelComplete && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[3] text-white text-sm animate-bounce">
+          Scroll to explore
+        </div>
+      )}
     </section>
   );
 }
