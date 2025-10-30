@@ -16,7 +16,7 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
     
     for (let i = 0; i < gridSize * gridSize; i++) {
       cubeData.push({
-        position: [x * 0.8, y * 0.8, 0],
+        position: [x * 0.9, y * 0.9, 0],
         delay: i * 0.012,
         rotation: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI]
       });
