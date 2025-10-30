@@ -212,106 +212,87 @@ function Pool({ position = [0, 0, 0], width = 8, length = 14, depth = 1.2 }) {
   const waterRef = useRef();
   
   useFrame((state) => {
-    if (waterRef.current) {
-      waterRef.current.material.uniforms.uTime.value = state.clock.elapsedTime;
-    }
+    // No animation needed for solid water
   });
 
-  const waterMaterial = useMemo(() => new THREE.ShaderMaterial({
+  const waterMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#2d8da8',
     transparent: true,
-    uniforms: {
-      uTime: { value: 0 },
-      uDeepColor: { value: new THREE.Color('#2A7A8C') },
-      uShallowColor: { value: new THREE.Color('#5CB8CC') },
-      uFoamColor: { value: new THREE.Color('#A0D8E8') }
-    },
-    vertexShader: `
-      uniform float uTime;
-      varying vec2 vUv;
-      varying vec3 vPos;
-      
-      void main() {
-        vUv = uv;
-        vec3 pos = position;
-        
-        pos.z += sin(pos.x * 3.5 + uTime * 0.9) * 0.03;
-        pos.z += cos(pos.y * 3.0 + uTime * 0.7) * 0.025;
-        pos.z += sin(pos.x * 2.0 + pos.y * 1.5 + uTime * 1.2) * 0.02;
-        
-        vPos = pos;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uDeepColor;
-      uniform vec3 uShallowColor;
-      uniform vec3 uFoamColor;
-      uniform float uTime;
-      varying vec2 vUv;
-      varying vec3 vPos;
-      
-      void main() {
-        float depth = length(vUv - 0.5) * 1.5;
-        vec3 color = mix(uShallowColor, uDeepColor, depth);
-        
-        float caustic = sin(vUv.x * 25.0 + uTime * 0.6) * 0.5 + 0.5;
-        caustic *= sin(vUv.y * 25.0 + uTime * 0.8) * 0.5 + 0.5;
-        caustic += sin(vUv.x * 15.0 - uTime * 0.4) * 0.3;
-        color += caustic * 0.2;
-        
-        float edgeDistance = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-        float foam = smoothstep(0.0, 0.06, edgeDistance);
-        color = mix(uFoamColor, color, foam);
-        
-        gl_FragColor = vec4(color, 0.9);
-      }
-    `
+    opacity: 0.9,
+    roughness: 0.1,
+    metalness: 0.2
   }), []);
 
   return (
     <group position={position}>
+      {/* Pool floor */}
       <mesh position={[0, -depth, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[width, length, 50, 70]} />
         <meshStandardMaterial 
-          color="#3A9AAA" 
-          roughness={0.25} 
-          metalness={0.15}
+          color="#2d7a8f" 
+          roughness={0.3} 
+          metalness={0.1}
         />
       </mesh>
       
+      {/* Pool lane lines */}
       {Array.from({ length: 8 }).map((_, i) => (
         <mesh key={`floor-${i}`} position={[0, -depth + 0.01, (i - 3.5) * 1.8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[width - 0.5, 0.15]} />
-          <meshStandardMaterial color="#2A7A8C" roughness={0.3} />
+          <meshStandardMaterial 
+            color={i < 4 ? "#1a5f7a" : "#247a8f"} 
+            roughness={0.3} 
+          />
         </mesh>
       ))}
       
+
+      
+      {/* Pool walls */}
       <mesh position={[-width/2, -depth/2, 0]} receiveShadow castShadow>
         <boxGeometry args={[0.2, depth, length]} />
-        <meshStandardMaterial color="#2D7A8A" roughness={0.4} />
+        <meshStandardMaterial 
+          color="#1d5a6f" 
+          roughness={0.3}
+          metalness={0.1}
+        />
       </mesh>
       <mesh position={[width/2, -depth/2, 0]} receiveShadow castShadow>
         <boxGeometry args={[0.2, depth, length]} />
-        <meshStandardMaterial color="#2D7A8A" roughness={0.4} />
+        <meshStandardMaterial 
+          color="#1d5a6f" 
+          roughness={0.3}
+          metalness={0.1}
+        />
       </mesh>
       <mesh position={[0, -depth/2, -length/2]} receiveShadow castShadow>
         <boxGeometry args={[width, depth, 0.2]} />
-        <meshStandardMaterial color="#2D7A8A" roughness={0.4} />
+        <meshStandardMaterial 
+          color="#1d5a6f" 
+          roughness={0.3}
+          metalness={0.1}
+        />
       </mesh>
       <mesh position={[0, -depth/2, length/2]} receiveShadow castShadow>
         <boxGeometry args={[width, depth, 0.2]} />
-        <meshStandardMaterial color="#2D7A8A" roughness={0.4} />
+        <meshStandardMaterial 
+          color="#1d5a6f" 
+          roughness={0.3}
+          metalness={0.1}
+        />
       </mesh>
       
+      {/* Water surface - solid blue water */}
       <mesh 
         ref={waterRef} 
         position={[0, 0.01, 0]} 
         rotation={[-Math.PI / 2, 0, 0]} 
         material={waterMaterial}
       >
-        <planeGeometry args={[width, length, 180, 220]} />
+        <planeGeometry args={[width, length]} />
       </mesh>
       
+      {/* Pool edge/coping */}
       <mesh position={[-width/2 - 0.2, 0.1, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.4, 0.2, length + 0.8]} />
         <meshStandardMaterial color="#E8DCC8" roughness={0.75} />
@@ -450,7 +431,7 @@ function Koi({ position = [0, 0, 0], count = 18, poolWidth = 7, poolLength = 13 
 
   return (
     <instancedMesh ref={meshRef} args={[null, null, count]} position={position}>
-      <capsuleGeometry args={[0.09, 0.4, 4, 8]} />
+      <cylinderGeometry args={[0.09, 0.09, 0.4, 8]} />
       <meshStandardMaterial color="#FF9F5A" roughness={0.35} metalness={0.25} />
     </instancedMesh>
   );
@@ -702,13 +683,14 @@ function CourtyardScene({ cameraGroupRef }) {
 
 // ===== MAIN COMPONENT =====
 export default function VillaJourney() {
+  const containerRef = useRef(null);
   const sectionRef = useRef(null);
   const cameraGroupRef = useRef({ 
     position: new THREE.Vector3(0, 3, 18), 
     rotation: new THREE.Euler(0, 0, 0) 
   });
   const [dpr, setDpr] = useState(1.5);
-  const [diveProgress, setDiveProgress] = useState(0);
+  const [showPoolDive, setShowPoolDive] = useState(false);
 
   useLayoutEffect(() => {
     if (!sectionRef.current) return;
@@ -718,12 +700,19 @@ export default function VillaJourney() {
         scrollTrigger: {
           trigger: sectionRef.current,
           start: 'top top',
-          end: '+=200%', // Reduced for easier testing
+          end: '+=100%',
           scrub: 1,
           pin: true,
           anticipatePin: 1,
           onUpdate: (self) => {
-            setDiveProgress(self.progress);
+            // Show PoolDive when animation completes
+            if (self.progress >= 0.95 && !showPoolDive) {
+              setShowPoolDive(true);
+              // Unpin after a short delay to allow transition
+              setTimeout(() => {
+                self.kill();
+              }, 100);
+            }
           }
         }
       });
@@ -744,14 +733,10 @@ export default function VillaJourney() {
     }, sectionRef);
 
     return () => ctx.revert();
-  }, []);
-
-  const villaOpacity = diveProgress < 0.75 ? 1 : Math.max(0, 1 - ((diveProgress - 0.75) / 0.25));
-  const poolDiveOpacity = diveProgress < 0.75 ? 0 : Math.min(1, (diveProgress - 0.75) / 0.25);
-  const showPoolDive = diveProgress >= 0.75; // Aligned with opacity transition
+  }, [showPoolDive]);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <section
         ref={sectionRef}
         style={{
@@ -759,8 +744,8 @@ export default function VillaJourney() {
           height: '100vh',
           position: 'relative',
           background: 'linear-gradient(to bottom, #FAF6F0 0%, #F5EFE7 50%, #F0E8DC 100%)',
-          opacity: villaOpacity,
-          transition: 'opacity 0.3s ease-out'
+          opacity: showPoolDive ? 0 : 1,
+          transition: 'opacity 0.5s ease-out'
         }}
       >
         <Canvas
@@ -794,7 +779,7 @@ export default function VillaJourney() {
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
           }}
         >
-          <h2 style={{ 
+          {/* <h2 style={{ 
             fontSize: '3.2rem', 
             marginBottom: '1.2rem', 
             fontWeight: 400,
@@ -815,23 +800,12 @@ export default function VillaJourney() {
             cascading waters create a symphony of tranquility, and golden koi glide 
             beneath pergola shadows. Ancient pillars guard this oasis of serenity, 
             where every detail whispers Mediterranean elegance.
-          </p>
+          </p> */}
         </div>
       </section>
 
       {showPoolDive && (
-        <div 
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            opacity: poolDiveOpacity,
-            transition: 'opacity 0.3s ease-in',
-            zIndex: 100 // Increased z-index
-          }}
-        >
+        <div style={{ width: '100vw', minHeight: '100vh',overflow:'hidden'}}>
           <PoolDive />
         </div>
       )}
