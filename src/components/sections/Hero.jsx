@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import VillaJourney from './VillaJourney';
 
 // ===== Spiral Cubes Animation Component =====
-function SpiralCubes({ onComplete }) {
+function SpiralCubes({ onComplete, onSmokeProgress }) {
   const groupRef = useRef();
   const smokeRef = useRef();
   const [cubes] = useState(() => {
@@ -110,6 +110,11 @@ function SpiralCubes({ onComplete }) {
         const smokeProgress = Math.min(1, (tl.progress - growDuration - holdDuration) / fadeDuration);
         smokeRef.current.material.opacity = smokeProgress * 0.25;
         smokeRef.current.rotation.z += 0.0005;
+        
+        // Send smoke progress to parent for background evaporation
+        if (onSmokeProgress) {
+          onSmokeProgress(smokeProgress);
+        }
       }
     }
     
@@ -138,9 +143,9 @@ function SpiralCubes({ onComplete }) {
                 metalness={0.2}
               />
             </mesh>
-            {/* Border cube - slightly larger for 1px border effect */}
+            {/* Border cube - slightly larger for 0.5px border effect */}
             <mesh rotation={cube.rotation}>
-              <boxGeometry args={[0.37, 0.37, 0.37]} />
+              <boxGeometry args={[0.36, 0.36, 0.36]} />
               <meshBasicMaterial
                 color="#FFFFFF"
                 transparent
@@ -175,18 +180,70 @@ function SpiralCubes({ onComplete }) {
 }
 
 // ===== 3D Components =====
-function BackgroundFade({ phase, gl }) {
+function BackgroundFade({ phase, gl, smokeProgress }) {
+  const bgRef = useRef();
+  const noiseTextureRef = useRef();
+  
   useEffect(() => {
-    let color;
-    if (phase === 'intro') {
-      color = '#FFFFFF';
-    } else {
-      color = '#F5F0E6';
+    // Create noise texture for blurry effect
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Create off-white with noise/grain texture
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const noise = Math.random() * 20 - 10;
+      imageData.data[i] = 245 + noise;     // R
+      imageData.data[i + 1] = 240 + noise; // G
+      imageData.data[i + 2] = 230 + noise; // B
+      imageData.data[i + 3] = 255;         // A
     }
-    gl.setClearColor(new THREE.Color(color));
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Apply blur effect
+    ctx.filter = 'blur(3px)';
+    ctx.drawImage(canvas, 0, 0);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3, 3);
+    noiseTextureRef.current = texture;
+  }, []);
+  
+  useEffect(() => {
+    gl.setClearColor(new THREE.Color('#FFFFFF'));
   }, [phase, gl]);
   
-  return null;
+  useFrame(() => {
+    if (bgRef.current && noiseTextureRef.current) {
+      // Animate the texture offset for subtle movement
+      noiseTextureRef.current.offset.x += 0.0002;
+      noiseTextureRef.current.offset.y += 0.0001;
+      
+      // Make background evaporate (fade to white/transparent) when cubes disappear
+      if (smokeProgress > 0) {
+        bgRef.current.material.opacity = 1 - smokeProgress;
+      }
+    }
+  });
+  
+  return (
+    <>
+      {/* Blurry textured off-white background plane that evaporates */}
+      <mesh ref={bgRef} position={[0, 0, -3]}>
+        <planeGeometry args={[100, 100]} />
+        <meshBasicMaterial
+          map={noiseTextureRef.current}
+          color="#F5F0E6"
+          transparent
+          opacity={1}
+        />
+      </mesh>
+    </>
+  );
 }
 
 function VillaLighting() {
@@ -210,11 +267,18 @@ function VillaLighting() {
 
 function Scene3DContent({ phase, onSpiralComplete }) {
   const { gl } = useThree();
+  const [smokeProgress, setSmokeProgress] = useState(0);
+  
   return (
     <>
-      <BackgroundFade phase={phase} gl={gl} />
+      <BackgroundFade phase={phase} gl={gl} smokeProgress={smokeProgress} />
       <VillaLighting />
-      {phase === 'intro' && <SpiralCubes onComplete={onSpiralComplete} />}
+      {phase === 'intro' && (
+        <SpiralCubes 
+          onComplete={onSpiralComplete} 
+          onSmokeProgress={setSmokeProgress}
+        />
+      )}
     </>
   );
 }
