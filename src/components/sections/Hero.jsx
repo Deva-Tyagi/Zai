@@ -31,7 +31,10 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
     return cubeData;
   });
 
-  const timelineRef = useRef({ progress: 0, phase: 'growing' });
+  const timelineRef = useRef({ 
+    progress: -1, // Start at -1 for initial 1 second delay
+    phase: 'growing'
+  });
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
@@ -52,8 +55,17 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
       const borderCube = cubeGroup.children[1];
       const smokeParticle = cubeGroup.children[2];
       
+      // Keep everything at 0 during initial delay
+      if (tl.progress < 0) {
+        mainCube.scale.setScalar(0);
+        borderCube.scale.setScalar(0);
+        smokeParticle.scale.setScalar(0);
+        mainCube.material.opacity = 0;
+        borderCube.material.opacity = 0;
+        smokeParticle.material.opacity = 0;
+      }
       // Growing phase
-      if (localTime < 0.4) {
+      else if (localTime < 0.4) {
         const growProgress = localTime / 0.4;
         const eased = growProgress < 0.5 
           ? 4 * growProgress * growProgress * growProgress
@@ -95,13 +107,17 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
         smokeParticle.position.y += delta * 0.5; // Rise up effect
       }
       
-      // Continuous rotation
-      mainCube.rotation.x += 0.003;
-      mainCube.rotation.y += 0.004;
-      borderCube.rotation.x += 0.003;
-      borderCube.rotation.y += 0.004;
-      smokeParticle.rotation.x += 0.002;
-      smokeParticle.rotation.y += 0.003;
+      // Continuous rotation (only when cubes are visible)
+      if (tl.progress >= 0 && mainCube.material.opacity > 0) {
+        mainCube.rotation.x += 0.003;
+        mainCube.rotation.y += 0.004;
+        borderCube.rotation.x += 0.003;
+        borderCube.rotation.y += 0.004;
+      }
+      if (smokeParticle.material.opacity > 0) {
+        smokeParticle.rotation.x += 0.002;
+        smokeParticle.rotation.y += 0.003;
+      }
     });
     
     // Full screen smoky overlay - appears as cubes evaporate
@@ -289,7 +305,7 @@ export default function Hero() {
   const [zoomProgress, setZoomProgress] = useState(0);
   const [enableZoom, setEnableZoom] = useState(false);
 
-  const [phase, setPhase] = useState('intro');
+  const [phase, setPhase] = useState('intro'); // Start with intro phase
   const scrollAccumulatorRef = useRef(0);
   const spiralCompletedRef = useRef(false);
 
@@ -413,10 +429,10 @@ export default function Hero() {
         `}
       </style>
       
-      {/* 3D Canvas - Only visible during intro */}
+      {/* 3D Canvas - Visible during intro phase */}
       <div 
         className={`absolute inset-0 transition-opacity duration-500 ${
-          phase === 'intro' ? 'opacity-100 z-[1]' : 'opacity-0 pointer-events-none z-[0]'
+          phase === 'intro' ? 'opacity-100 z-[10]' : 'opacity-0 pointer-events-none z-[0]'
         }`}
       >
         <Canvas
@@ -434,10 +450,10 @@ export default function Hero() {
         </Canvas>
       </div>
 
-      {/* Villa Images */}
+      {/* Villa Images - Only visible after cubes disappear */}
       <div
         className={`absolute inset-0 transition-opacity duration-1000 ${
-          phase === 'intro' ? 'opacity-0' : 'opacity-100'
+          phase === 'villa' ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         style={{
           transform: enableZoom 
@@ -468,7 +484,7 @@ export default function Hero() {
         </div>
       </div>
       
-      {/* Day/Night Toggle Button */}
+      {/* Day/Night Toggle Button - Only show when villa is visible */}
       <button
         onClick={() => setIsDayMode(!isDayMode)}
         className={`fixed top-4 left-4 z-[50] bg-white/20 backdrop-blur-md hover:bg-white/30 text-white px-4 py-2 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border border-white/30 cursor-pointer ${
