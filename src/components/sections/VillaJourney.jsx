@@ -313,86 +313,86 @@ function Pool({ position = [0, 0, 0], width = 8, length = 14, depth = 1.2 }) {
   );
 }
 
-function WaterCurtain({ position = [0, 0, 0], width = 5, height = 4.5, poolY = 0.01 }) {
-  const pointsRef = useRef();
-  const count = 10000;
+// function WaterCurtain({ position = [0, 0, 0], width = 5, height = 4.5, poolY = 0.01 }) {
+//   const pointsRef = useRef();
+//   const count = 10000;
   
-  const positions = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * width;
-      pos[i * 3 + 1] = Math.random();
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
-    }
-    return pos;
-  }, []);
+//   const positions = useMemo(() => {
+//     const pos = new Float32Array(count * 3);
+//     for (let i = 0; i < count; i++) {
+//       pos[i * 3] = (Math.random() - 0.5) * width;
+//       pos[i * 3 + 1] = Math.random();
+//       pos[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
+//     }
+//     return pos;
+//   }, []);
 
-  useFrame((state) => {
-    if (pointsRef.current) {
-      pointsRef.current.material.uniforms.uTime.value = state.clock.elapsedTime;
-    }
-  });
+//   useFrame((state) => {
+//     if (pointsRef.current) {
+//       pointsRef.current.material.uniforms.uTime.value = state.clock.elapsedTime;
+//     }
+//   });
 
-  const curtainMaterial = useMemo(() => new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    uniforms: {
-      uTime: { value: 0 },
-      uHeight: { value: height },
-      uPoolY: { value: poolY }
-    },
-    vertexShader: `
-      uniform float uTime;
-      uniform float uHeight;
-      uniform float uPoolY;
-      varying float vAlpha;
-      varying float vY;
+//   const curtainMaterial = useMemo(() => new THREE.ShaderMaterial({
+//     transparent: true,
+//     depthWrite: false,
+//     blending: THREE.AdditiveBlending,
+//     uniforms: {
+//       uTime: { value: 0 },
+//       uHeight: { value: height },
+//       uPoolY: { value: poolY }
+//     },
+//     vertexShader: `
+//       uniform float uTime;
+//       uniform float uHeight;
+//       uniform float uPoolY;
+//       varying float vAlpha;
+//       varying float vY;
       
-      void main() {
-        vec3 pos = position;
+//       void main() {
+//         vec3 pos = position;
         
-        float cycle = mod(uTime * 2.0, 1.0);
-        float particleOffset = pos.y;
-        float totalCycle = mod(cycle + particleOffset, 1.0);
+//         float cycle = mod(uTime * 2.0, 1.0);
+//         float particleOffset = pos.y;
+//         float totalCycle = mod(cycle + particleOffset, 1.0);
         
-        pos.y = uHeight - (totalCycle * (uHeight - uPoolY));
+//         pos.y = uHeight - (totalCycle * (uHeight - uPoolY));
         
-        pos.x += sin(uTime * 2.8 + particleOffset * 6.28) * 0.15;
-        pos.z += cos(uTime * 2.2 + particleOffset * 6.28) * 0.1;
+//         pos.x += sin(uTime * 2.8 + particleOffset * 6.28) * 0.15;
+//         pos.z += cos(uTime * 2.2 + particleOffset * 6.28) * 0.1;
         
-        vAlpha = smoothstep(0.0, 0.12, totalCycle) * smoothstep(1.0, 0.82, totalCycle);
-        vY = pos.y;
+//         vAlpha = smoothstep(0.0, 0.12, totalCycle) * smoothstep(1.0, 0.82, totalCycle);
+//         vY = pos.y;
         
-        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        gl_PointSize = 3.2 * (1.0 + totalCycle * 0.4);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      varying float vAlpha;
-      varying float vY;
+//         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+//         gl_PointSize = 3.2 * (1.0 + totalCycle * 0.4);
+//         gl_Position = projectionMatrix * mvPosition;
+//       }
+//     `,
+//     fragmentShader: `
+//       varying float vAlpha;
+//       varying float vY;
       
-      void main() {
-        float dist = length(gl_PointCoord - vec2(0.5));
-        if (dist > 0.5) discard;
+//       void main() {
+//         float dist = length(gl_PointCoord - vec2(0.5));
+//         if (dist > 0.5) discard;
         
-        float alpha = (1.0 - dist * 2.0) * vAlpha;
-        float brightness = 0.8 + vY * 0.06;
+//         float alpha = (1.0 - dist * 2.0) * vAlpha;
+//         float brightness = 0.8 + vY * 0.06;
         
-        gl_FragColor = vec4(brightness, brightness + 0.12, brightness + 0.18, alpha * 0.8);
-      }
-    `
-  }), []);
+//         gl_FragColor = vec4(brightness, brightness + 0.12, brightness + 0.18, alpha * 0.8);
+//       }
+//     `
+//   }), []);
 
-  return (
-    <points ref={pointsRef} position={position} material={curtainMaterial}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-      </bufferGeometry>
-    </points>
-  );
-}
+//   return (
+//     <points ref={pointsRef} position={position} material={curtainMaterial}>
+//       <bufferGeometry>
+//         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+//       </bufferGeometry>
+//     </points>
+//   );
+// }
 
 function Koi({ position = [0, 0, 0], count = 18, poolWidth = 7, poolLength = 13 }) {
   const meshRef = useRef();
@@ -660,7 +660,7 @@ function CourtyardScene({ cameraGroupRef }) {
       <Arcade position={[7.5, 0, 0]} count={5} spacing={3.5} />
       <Pool position={[0, 0, 2]} width={8} length={14} depth={1.2} />
       <Koi position={[0, 0, 2]} count={18} poolWidth={7} poolLength={13} />
-      <WaterCurtain position={[-3.2, 2.5, -2]} width={5} height={5.2} poolY={0.01} />
+      {/* <WaterCurtain position={[-3.2, 2.5, -2]} width={5} height={5.2} poolY={0.01} /> */}
       <Fountain position={[0, 0, -5]} />
       <Stairs position={[8, 0, 12]} steps={4} />
       <Plant position={[-5, 0, -2]} scale={0.9} />

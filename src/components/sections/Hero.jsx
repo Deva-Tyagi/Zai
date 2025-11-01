@@ -16,7 +16,7 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
     
     for (let i = 0; i < gridSize * gridSize; i++) {
       cubeData.push({
-        position: [x * 0.9, y * 0.9, 0],
+        position: [x * 0.6, y * 0.6, 0],
         delay: i * 0.012,
         rotation: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI]
       });
@@ -148,7 +148,7 @@ function SpiralCubes({ onComplete, onSmokeProgress }) {
           <group key={i} position={cube.position}>
             {/* Main cube */}
             <mesh rotation={cube.rotation}>
-              <boxGeometry args={[0.35, 0.35, 0.35]} />
+              <boxGeometry args={[0.25, 0.25, 0.25]} />
               <meshStandardMaterial
                 color="#6A4C93"
                 emissive="#6A4C93"
