@@ -9,6 +9,213 @@ if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
 
+function AnimatedFish({ position = [0, 0, 0], scale = 1, color = '#ff6b35', pathOffset = 0, yOffset = 0, radiusX = 7, radiusZ = 12 }) {
+  const fishGroupRef = useRef();
+  const tailRef = useRef();
+  const finLeftRef = useRef();
+  const finRightRef = useRef();
+  const bubblesRef = useRef();
+  
+  const [fishPath] = useState(() => {
+    const points = [];
+    const segments = 100;
+    for (let i = 0; i < segments; i++) {
+      const t = (i / segments) * Math.PI * 2;
+      points.push({
+        x: Math.sin(t + pathOffset) * radiusX + Math.cos(t * 1.5 + pathOffset) * 2,
+        y: -12 + yOffset + Math.sin(t * 3 + pathOffset) * 4,
+        z: Math.cos(t + pathOffset) * radiusZ + Math.sin(t * 2 + pathOffset) * 3,
+      });
+    }
+    return points;
+  });
+  
+  const [bubbles] = useState(() => 
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      startTime: Math.random() * 10,
+      speed: 0.3 + Math.random() * 0.2,
+      offset: Math.random() * Math.PI * 2
+    }))
+  );
+  
+  useFrame((state) => {
+    if (fishGroupRef.current) {
+      const time = state.clock.elapsedTime * 0.4 + pathOffset;
+      const pathIndex = Math.floor((time * 10) % fishPath.length);
+      const nextIndex = (pathIndex + 1) % fishPath.length;
+      const progress = ((time * 10) % fishPath.length) - pathIndex;
+      
+      const current = fishPath[pathIndex];
+      const next = fishPath[nextIndex];
+      
+      // Smooth position interpolation
+      fishGroupRef.current.position.x = THREE.MathUtils.lerp(current.x, next.x, progress);
+      fishGroupRef.current.position.y = THREE.MathUtils.lerp(current.y, next.y, progress);
+      fishGroupRef.current.position.z = THREE.MathUtils.lerp(current.z, next.z, progress);
+      
+      // Calculate swimming direction
+      const dx = next.x - current.x;
+      const dz = next.z - current.z;
+      const targetRotation = Math.atan2(dx, dz);
+      fishGroupRef.current.rotation.y = targetRotation;
+      
+      // Subtle pitch
+      const dy = next.y - current.y;
+      fishGroupRef.current.rotation.x = dy * 0.3;
+      
+      // Animate tail
+      if (tailRef.current) {
+        tailRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 8 + pathOffset) * 0.4;
+      }
+      
+      // Animate fins
+      if (finLeftRef.current) {
+        finLeftRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 6 + pathOffset) * 0.3 + 0.3;
+      }
+      if (finRightRef.current) {
+        finRightRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 6 + pathOffset) * 0.3 - 0.3;
+      }
+      
+      // Animate bubbles from mouth
+      if (bubblesRef.current) {
+        bubblesRef.current.children.forEach((bubble, i) => {
+          const data = bubbles[i];
+          const bubbleTime = (state.clock.elapsedTime + data.startTime) * data.speed;
+          const progress = bubbleTime % 3;
+          
+          if (progress < 2) {
+            const mouthWorldPos = new THREE.Vector3(0, 0, 0.65);
+            fishGroupRef.current.localToWorld(mouthWorldPos);
+            
+            bubble.position.set(
+              mouthWorldPos.x + Math.sin(bubbleTime + data.offset) * 0.1,
+              mouthWorldPos.y + progress * 1.2,
+              mouthWorldPos.z + Math.cos(bubbleTime + data.offset) * 0.1
+            );
+            bubble.visible = true;
+            bubble.scale.setScalar(0.04 + progress * 0.02);
+          } else {
+            bubble.visible = false;
+          }
+        });
+      }
+    }
+  });
+  
+  return (
+    <group ref={fishGroupRef} scale={scale}>
+      {/* Fish Body */}
+      <mesh castShadow>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshStandardMaterial 
+          color={color} 
+          roughness={0.4} 
+          metalness={0.3}
+          emissive={color}
+          emissiveIntensity={0.2}
+        />
+      </mesh>
+      
+      {/* Fish Head/Snout */}
+      <mesh position={[0, 0, 0.4]} castShadow>
+        <coneGeometry args={[0.3, 0.5, 16]} />
+        <meshStandardMaterial 
+          color={color} 
+          roughness={0.4} 
+          metalness={0.3}
+        />
+      </mesh>
+      
+      {/* Eyes */}
+      <mesh position={[0.2, 0.15, 0.5]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[0.2, 0.15, 0.52]}>
+        <sphereGeometry args={[0.04, 8, 8]} />
+        <meshStandardMaterial color="#000000" />
+      </mesh>
+      <mesh position={[-0.2, 0.15, 0.5]}>
+        <sphereGeometry args={[0.08, 8, 8]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>
+      <mesh position={[-0.2, 0.15, 0.52]}>
+        <sphereGeometry args={[0.04, 8, 8]} />
+        <meshStandardMaterial color="#000000" />
+      </mesh>
+      
+      {/* Dorsal Fin */}
+      <mesh position={[0, 0.4, -0.1]} rotation={[0, 0, 0]}>
+        <coneGeometry args={[0.25, 0.6, 8]} />
+        <meshStandardMaterial 
+          color={color} 
+          roughness={0.5} 
+          transparent 
+          opacity={0.9}
+        />
+      </mesh>
+      
+      {/* Side Fins */}
+      <group ref={finLeftRef} position={[0.4, -0.1, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 4]}>
+          <coneGeometry args={[0.15, 0.4, 8]} />
+          <meshStandardMaterial 
+            color={color} 
+            roughness={0.5} 
+            transparent 
+            opacity={0.8}
+          />
+        </mesh>
+      </group>
+      
+      <group ref={finRightRef} position={[-0.4, -0.1, 0]}>
+        <mesh rotation={[0, 0, -Math.PI / 4]}>
+          <coneGeometry args={[0.15, 0.4, 8]} />
+          <meshStandardMaterial 
+            color={color} 
+            roughness={0.5} 
+            transparent 
+            opacity={0.8}
+          />
+        </mesh>
+      </group>
+      
+      {/* Tail */}
+      <group ref={tailRef} position={[0, 0, -0.5]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.4, 0.6, 3]} />
+          <meshStandardMaterial 
+            color={color} 
+            roughness={0.5} 
+            transparent 
+            opacity={0.9}
+          />
+        </mesh>
+      </group>
+      
+      {/* Subtle glow */}
+      <pointLight position={[0, 0, 0]} intensity={0.3} color={color} distance={3} />
+      
+      {/* Tiny bubbles from mouth */}
+      <group ref={bubblesRef}>
+        {bubbles.map((_, i) => (
+          <mesh key={i} visible={false}>
+            <sphereGeometry args={[1, 8, 8]} />
+            <meshStandardMaterial 
+              color="#ffffff" 
+              transparent 
+              opacity={0.4} 
+              roughness={0.1}
+              metalness={0.05}
+            />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
 function RealisticWater() {
   const waterRef = useRef();
   const { camera } = useThree();
@@ -127,63 +334,63 @@ function RealisticWater() {
   );
 }
 
-function UnderwaterParticles({count=7000}){
-  const particlesRef=useRef();
-  const positions=useMemo(()=>{
-    const pos=new Float32Array(count*3);
-    for(let i=0;i<count;i++){
-      pos[i*3]=(Math.random()-.5)*30;
-      pos[i*3+1]=Math.random()*35-30;
-      pos[i*3+2]=(Math.random()-.5)*60;
-    }
-    return pos;
-  },[count]);
+// function UnderwaterParticles({count=5000}){
+//   const particlesRef=useRef();
+//   const positions=useMemo(()=>{
+//     const pos=new Float32Array(count*3);
+//     for(let i=0;i<count;i++){
+//       pos[i*3]=(Math.random()-.5)*30;
+//       pos[i*3+1]=Math.random()*35-30;
+//       pos[i*3+2]=(Math.random()-.5)*60;
+//     }
+//     return pos;
+//   },[count]);
   
-  useFrame((state)=>{
-    if(particlesRef.current){
-      particlesRef.current.material.uniforms.uTime.value=state.clock.elapsedTime;
-    }
-  });
+//   useFrame((state)=>{
+//     if(particlesRef.current){
+//       particlesRef.current.material.uniforms.uTime.value=state.clock.elapsedTime;
+//     }
+//   });
   
-  const particleMaterial=useMemo(()=>new THREE.ShaderMaterial({
-    transparent:true,
-    depthWrite:false,
-    blending:THREE.AdditiveBlending,
-    uniforms:{uTime:{value:0}},
-    vertexShader:`
-      uniform float uTime; 
-      varying float vAlpha; 
+//   const particleMaterial=useMemo(()=>new THREE.ShaderMaterial({
+//     transparent:true,
+//     depthWrite:false,
+//     blending:THREE.AdditiveBlending,
+//     uniforms:{uTime:{value:0}},
+//     vertexShader:`
+//       uniform float uTime; 
+//       varying float vAlpha; 
       
-      void main(){
-        vec3 pos=position;
-        pos.x+=sin(uTime*.5+position.y*.5)*.3;
-        pos.y+=mod(uTime*.4+position.y*.1,35.)-30.;
-        pos.z+=cos(uTime*.3+position.x*.3)*.2;
-        vAlpha=.3+sin(uTime*2.+position.x*10.)*.2;
-        vec4 mvPosition=modelViewMatrix*vec4(pos,1.);
-        gl_PointSize=2.5*(1.-mvPosition.z*.05);
-        gl_Position=projectionMatrix*mvPosition;
-      }
-    `,
-    fragmentShader:`
-      varying float vAlpha; 
+//       void main(){
+//         vec3 pos=position;
+//         pos.x+=sin(uTime*.5+position.y*.5)*.3;
+//         pos.y+=mod(uTime*.4+position.y*.1,35.)-30.;
+//         pos.z+=cos(uTime*.3+position.x*.3)*.2;
+//         vAlpha=.3+sin(uTime*2.+position.x*10.)*.2;
+//         vec4 mvPosition=modelViewMatrix*vec4(pos,1.);
+//         gl_PointSize=2.5*(1.-mvPosition.z*.05);
+//         gl_Position=projectionMatrix*mvPosition;
+//       }
+//     `,
+//     fragmentShader:`
+//       varying float vAlpha; 
       
-      void main(){
-        float dist=length(gl_PointCoord-vec2(.5));
-        if(dist>.5)discard;
-        gl_FragColor=vec4(.8,.9,1.,(1.-dist*2.)*vAlpha*.4);
-      }
-    `
-  }),[]);
+//       void main(){
+//         float dist=length(gl_PointCoord-vec2(.5));
+//         if(dist>.5)discard;
+//         gl_FragColor=vec4(.8,.9,1.,(1.-dist*2.)*vAlpha*.4);
+//       }
+//     `
+//   }),[]);
   
-  return (
-    <points ref={particlesRef} material={particleMaterial}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3}/>
-      </bufferGeometry>
-    </points>
-  );
-}
+//   return (
+//     <points ref={particlesRef} material={particleMaterial}>
+//       <bufferGeometry>
+//         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3}/>
+//       </bufferGeometry>
+//     </points>
+//   );
+// }
 
 function PoolWalls(){
   const wallProps={color:"#2d6a7a",roughness:.6};
@@ -498,9 +705,32 @@ function UnderwaterScene({cameraGroupRef,cardOpacity,cameraRotation,showBubbles}
       <color attach="background" args={['#0a3a4a']}/>
       <fog attach="fog" args={['#0a3a4a',10,55]}/>
       <PoolWalls/>
-      {/* <UnderwaterParticles count={7000}/> */}
+      {/* <UnderwaterParticles count={5000}/> */}
       <UnderwaterRocks/>
-      <DiveBubbles show={showBubbles}/>
+      {/* <DiveBubbles show={showBubbles}/> */}
+      
+      {/* Multiple swimming fish with different paths - Upper and Middle levels */}
+      <AnimatedFish scale={1.2} color="#ff6b35" pathOffset={0} yOffset={0} radiusX={7} radiusZ={12} />
+      <AnimatedFish scale={0.9} color="#4ecdc4" pathOffset={Math.PI * 0.5} yOffset={-3} radiusX={6} radiusZ={10} />
+      <AnimatedFish scale={1.0} color="#ffe66d" pathOffset={Math.PI} yOffset={2} radiusX={8} radiusZ={14} />
+      <AnimatedFish scale={1.1} color="#ff85a1" pathOffset={Math.PI * 1.5} yOffset={-1} radiusX={5} radiusZ={11} />
+      <AnimatedFish scale={0.8} color="#95e1d3" pathOffset={Math.PI * 0.3} yOffset={-4} radiusX={9} radiusZ={13} />
+      <AnimatedFish scale={1.3} color="#f38181" pathOffset={Math.PI * 1.2} yOffset={1} radiusX={7} radiusZ={9} />
+      <AnimatedFish scale={0.95} color="#aa96da" pathOffset={Math.PI * 1.8} yOffset={-2} radiusX={6} radiusZ={15} />
+      <AnimatedFish scale={1.05} color="#ffd93d" pathOffset={Math.PI * 0.7} yOffset={3} radiusX={8} radiusZ={11} />
+      <AnimatedFish scale={0.85} color="#6bcf7f" pathOffset={Math.PI * 1.4} yOffset={-3} radiusX={7} radiusZ={13} />
+      <AnimatedFish scale={1.15} color="#ff6b9d" pathOffset={Math.PI * 0.9} yOffset={1} radiusX={6} radiusZ={10} />
+      
+      {/* Bottom dwelling fish - swimming near the pool floor */}
+      <AnimatedFish scale={0.9} color="#ff5722" pathOffset={0} yOffset={-14} radiusX={5} radiusZ={8} />
+      <AnimatedFish scale={1.0} color="#26a69a" pathOffset={Math.PI * 0.6} yOffset={-15} radiusX={6} radiusZ={9} />
+      <AnimatedFish scale={0.8} color="#ffb74d" pathOffset={Math.PI * 1.3} yOffset={-13} radiusX={4} radiusZ={7} />
+      <AnimatedFish scale={1.1} color="#ab47bc" pathOffset={Math.PI * 1.9} yOffset={-14} radiusX={7} radiusZ={10} />
+      <AnimatedFish scale={0.95} color="#42a5f5" pathOffset={Math.PI * 0.4} yOffset={-16} radiusX={5} radiusZ={8} />
+      <AnimatedFish scale={0.85} color="#ef5350" pathOffset={Math.PI * 1.1} yOffset={-15} radiusX={6} radiusZ={9} />
+      <AnimatedFish scale={1.05} color="#66bb6a" pathOffset={Math.PI * 1.7} yOffset={-14} radiusX={4} radiusZ={7} />
+      <AnimatedFish scale={0.9} color="#ffa726" pathOffset={Math.PI * 0.2} yOffset={-13} radiusX={5} radiusZ={8} />
+      
       <ServiceCards cardOpacity={cardOpacity}/>
       {[[-8,0,-15],[-6,0,10],[7,0,-20],[9,0,15],[-10,0,25],[5,0,-25],[-3,0,-22],[10,0,28],[-7,0,0],[8,0,-8],[-9,0,-12],[6,0,20],[-5,0,18],[4,0,-18],[-11,0,-5],[11,0,5]].map((pos,i)=>(
         <UnderwaterPlant key={i} position={pos}/>
@@ -535,7 +765,6 @@ export default function PoolDive(){
           pin:true,
           anticipatePin:1,
           onUpdate:(self)=>{
-            // Show bubbles at the beginning
             if(self.progress < 0.15){
               setShowBubbles(true);
             }else{
@@ -599,7 +828,7 @@ export default function PoolDive(){
         </Canvas>
       </div>
       <div style={{position:'fixed',top:'5%',right:'5%',color:'#a0e8ff',fontFamily:'system-ui, -apple-system, sans-serif',fontSize:'.9rem',pointerEvents:'none',background:'rgba(42, 106, 122, 0.6)',padding:'1rem 1.5rem',borderRadius:'20px',backdropFilter:'blur(8px)',border:'1px solid rgba(255, 255, 255, 0.1)',zIndex:100}}>
-        🏊 Scroll to dive into infinite depths
+        🏊 Scroll to dive & watch the fish swim
       </div>
     </div>
   );
